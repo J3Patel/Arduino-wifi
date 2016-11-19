@@ -193,3 +193,4 @@ String sendData(String command, const int timeout, boolean debug)
     
     return response;
 }
+
