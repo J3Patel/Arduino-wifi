@@ -1,0 +1,195 @@
+#include <SoftwareSerial.h>
+ #include <Servo.h> 
+
+#define DEBUG true
+ 
+SoftwareSerial esp8266(2,3); // make RX Arduino line is pin 2, make TX Arduino line is pin 3.
+
+Servo myservo;
+
+int pos = 0;
+int speed = 1;
+int min = 15;
+boolean alreadyConnected = false;
+
+// This means that you need to connect the TX line from the esp to the Arduino's pin 2
+                             // and the RX line from the esp to the Arduino's pin 3
+void setup()
+{
+
+  myservo.attach(9);
+  
+  Serial.begin(9600);
+  esp8266.begin(9600); // your esp's baud rate might be different
+ 
+  pinMode(5,OUTPUT);
+  digitalWrite(5,LOW);
+  
+  pinMode(6,OUTPUT);
+  digitalWrite(6,LOW);
+  
+  pinMode(7,OUTPUT);
+  digitalWrite(7,LOW);
+   
+  sendData("AT+RST\r\n",2000,DEBUG); // reset module
+  sendData("AT+CWMODE=2\r\n",1000,DEBUG); // configure as access point
+  sendData("AT+CIFSR\r\n",1000,DEBUG); // get ip address
+  sendData("AT+CIPMUX=1\r\n",1000,DEBUG); // configure for multiple connections
+  sendData("AT+CIPSERVER=1,80\r\n",1000,DEBUG); // turn on server on port 80
+//  motorRun();
+}
+
+void motorRun() {
+  //Servo
+  if(pos <= 10)
+ {
+   for(pos = 0; pos < speed; pos += 1)
+   {
+     myservo.write(pos);
+     delay(1000);
+   }
+ }
+ else
+ {
+   int pos = 31;
+ }
+ motorRun();
+}
+ 
+void loop()
+{
+  
+//  Serial.println("-----------LOOOP");
+ 
+  String inString = "";  
+  if(esp8266.available()) // check if the esp is sending a message 
+  {
+ if (!alreadyConnected) {
+      // clear out the input buffer:
+      esp8266.flush();
+      Serial.println("We have a new client");
+      esp8266.println("Hello, client!");
+      alreadyConnected = true;
+    }
+    
+    if(esp8266.find("+IPD,"))
+    {
+//     delay(100); // wait for the serial buffer to fill up (read all the serial data)
+//      get the connection id so that we can then disconnect
+//     int connectionId = esp8266.read()-48; // subtract 48 because the read() function returns 
+                                           // the ASCII decimal value and 0 (the first decimal number) starts at 48
+            int pinNumber = 0;
+            String tempS = "";
+     esp8266.find("pin="); // advance cursor to "pin="
+     Serial.println("\n---------------------");
+      char temp = esp8266.read();
+      tempS = temp;
+      pinNumber += tempS.toInt() * 100;
+      inString += temp;
+      
+      Serial.println(inString);
+      temp = esp8266.read();
+      
+      tempS = temp;
+      pinNumber += tempS.toInt() * 10;
+      
+      inString += temp;
+      Serial.println(inString);
+      temp = esp8266.read();
+      tempS = temp;
+      pinNumber += tempS.toInt();
+      inString += temp;
+      Serial.println(inString);
+      Serial.println(inString);
+//      = (esp8266.read()-48)*100; // get first number i.e. if the pin 13 then the 1st number is 1, then multiply to get 10
+//     pinNumber += (esp8266.read()-48)*10;
+//     pinNumber += (esp8266.read()-48); // get second number, i.e. if the pin number is 13 then the 2nd number is 3, then add to the first number
+
+//  char thisChar = esp8266.read();
+      // echo the bytes back to the  client:
+//      Serial.println(thisChar);
+//      inString = (char)thisChar;
+//     int pinNumber = inString.toInt();
+    
+      Serial.println("\nspeed bitches");
+//      Serial.println(speed);
+     Serial.println(pinNumber);
+//     if (speed != pinNumber) {
+//      if ((speed - pinNumber) < 5) {
+//         setupMotor(speed, pinNumber); 
+//      } else {
+//        setupMotor(0, pinNumber);   
+//      }
+//      
+//     }
+     Serial.println("\n---------------------");
+    Serial.println(pinNumber);
+     digitalWrite(pinNumber, !digitalRead(pinNumber)); // toggle pin    
+     
+     // make close command
+//     String closeCommand = "AT+CIPCLOSE="; 
+//     closeCommand+=connectionId; // append connection id
+//     closeCommand+="\r\n";
+//     
+//     sendData(closeCommand,200,DEBUG); // close connection
+
+    }
+  }
+  
+//  myservo.write(speed);                  // sets the servo position according to the scaled value
+//    delay(15);  
+//  Serial.println("continue speen");
+//    Serial.println(speed);
+ 
+}
+
+void setupMotor(int counter, int spd) {
+  Serial.println(counter);
+   speed = spd;
+  myservo.write(counter);                  // sets the servo position according to the scaled value
+  delay(15);                           // waits for the servo to get there
+  if (counter == spd) {
+   
+    return;
+  } else {
+    counter++;
+    setupMotor(counter, spd);
+  }
+}
+void startMotor() {
+    myservo.write(speed);
+//    delay(10);
+  }
+ 
+/*
+* Name: sendData
+* Description: Function used to send data to ESP8266.
+* Params: command - the data/command to send; timeout - the time to wait for a response; debug - print to Serial window?(true = yes, false = no)
+* Returns: The response from the esp8266 (if there is a reponse)
+*/
+String sendData(String command, const int timeout, boolean debug)
+{
+    String response = "";
+    
+    esp8266.print(command); // send the read character to the esp8266
+    
+    long int time = millis();
+    
+    while( (time+timeout) > millis())
+    {
+      while(esp8266.available())
+      {
+        
+        // The esp has data so display its output to the serial window 
+        char c = esp8266.read(); // read the next character.
+        response+=c;
+      }  
+    }
+    
+    if(debug)
+    {
+      Serial.print(response);
+    }
+    
+    return response;
+}
